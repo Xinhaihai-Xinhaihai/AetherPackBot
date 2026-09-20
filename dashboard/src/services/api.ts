@@ -78,3 +78,18 @@ export async function getLogs(count: number = 100) {
   const response = await api.get('/api/logs', { params: { count } })
   return response.data
 }
+
+export async function updateBrainConfig(id: string, data: Record<string, any>) {
+  const response = await api.put(`/api/brains/${id}/config`, data)
+  return response.data
+}
+
+export async function getMcp() {
+  const response = await api.get('/api/mcp')
+  return response.data
+}
+
+export async function bindMcp(serverId: string, models: string[]) {
+  const response = await api.put(`/api/mcp/${serverId}/bind`, { bind_models: models })
+  return response.data
+}

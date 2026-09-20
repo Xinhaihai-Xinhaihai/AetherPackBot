@@ -9,7 +9,10 @@ Dashboard: `http://127.0.0.1:7619`
 ## What it is
 
 - **Harbor** — message dock. Each IM is a berth. A live connection is a slip. Incoming traffic becomes a Manifest.
-- **Brain** — model dock. Cortex nodes talk OpenAI-compat / Ollama. The router picks a live node.
+- **Brain** — model dock. Cortex nodes talk OpenAI-compat / Ollama. Each model has its own knobs: temperature, text, tools, vision.
+- **MCP** — separate layer. JSON-RPC over HTTP / SSE / stdio. One MCP server can bind many models.
+
+Copy `data/config/config.example.json` and fill keys. Dashboard: Providers page, save per-model knobs, bind MCP to a comma-separated list of provider ids. Empty bind list = every model.
 
 ## Windows local / 本机 Windows
 

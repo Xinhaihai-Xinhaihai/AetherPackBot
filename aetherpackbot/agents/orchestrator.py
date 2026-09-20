@@ -157,6 +157,66 @@ class AgentOrchestrator:
     def get_all_tools(self) -> list[Tool]:
         """Get all registered tools."""
         return list(self._tools.values())
+
+    async def _make_runner(self, provider) -> ToolLoopRunner:
+        if not self._main_config:
+            self._main_config = AgentConfig(name="main")
+        caps = getattr(getattr(provider, "config", None), "capabilities", None)
+        temperature = getattr(caps, "temperature", self._main_config.temperature)
+        tools = list(self._tools.values())
+        if caps is not None and not getattr(caps, "enable_tools", True):
+            tools = []
+        else:
+            tools = tools + await self._mcp_tools_for(getattr(provider, "provider_id", ""))
+        config = AgentConfig(
+            name=self._main_config.name,
+            instructions=self._main_config.instructions,
+            model=self._main_config.model,
+            provider_id=getattr(provider, "provider_id", None),
+            max_steps=self._main_config.max_steps,
+            timeout=self._main_config.timeout,
+            temperature=temperature,
+        )
+        return ToolLoopRunner(provider=provider, tools=tools, config=config)
+
+    async def _mcp_tools_for(self, provider_id: str) -> list[Tool]:
+        try:
+            from aetherpackbot.mcp.client import McpManager
+            mcp = await self._container.resolve(McpManager)
+        except Exception:
+            return []
+        out: list[Tool] = []
+        for item in mcp.tools_for(provider_id):
+            tool = Tool(
+                name=item.name,
+                description=item.description or item.name,
+                handler=self._make_mcp_handler(item.server_id, item.name),
+                parameters=[],
+            )
+            schema = item.input_schema or {}
+            required = schema.get("required") or []
+            for name, prop in (schema.get("properties") or {}).items():
+                if not isinstance(prop, dict):
+                    continue
+                from aetherpackbot.protocols.agents import ToolParameter
+                tool.parameters.append(ToolParameter(
+                    name=name,
+                    type=str(prop.get("type") or "string"),
+                    description=str(prop.get("description") or ""),
+                    required=name in required,
+                ))
+            out.append(tool)
+        return out
+
+    def _make_mcp_handler(self, server_id: str, tool_name: str):
+        async def _handler(**kwargs):
+            from aetherpackbot.mcp.client import McpManager
+            mcp = await self._container.resolve(McpManager)
+            result = await mcp.call_tool(tool_name, kwargs, server_id=server_id)
+            if isinstance(result, str):
+                return result
+            return json.dumps(result, ensure_ascii=False)
+        return _handler
     
     async def process_message(
         self,
@@ -222,15 +282,7 @@ class AgentOrchestrator:
             "content": message.text,
         })
         
-        # Create runner
-        if not self._main_config:
-            self._main_config = AgentConfig(name="main")
-        
-        runner = ToolLoopRunner(
-            provider=provider,
-            tools=list(self._tools.values()),
-            config=self._main_config,
-        )
+        runner = await self._make_runner(provider)
         
         # Run agent
         try:
@@ -282,15 +334,7 @@ class AgentOrchestrator:
             return
         
         messages = [{"role": "user", "content": event.message.text}]
-        
-        if not self._main_config:
-            self._main_config = AgentConfig(name="main")
-        
-        runner = ToolLoopRunner(
-            provider=provider,
-            tools=list(self._tools.values()),
-            config=self._main_config,
-        )
+        runner = await self._make_runner(provider)
         
         async for chunk in runner.run_stream(
             messages=messages,

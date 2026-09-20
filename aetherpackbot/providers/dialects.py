@@ -54,7 +54,12 @@ def _text_of(msg: LLMMessage) -> str:
 def _openai_messages(messages: list[LLMMessage]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for msg in messages:
-        item: dict[str, Any] = {"role": msg.role, "content": _text_of(msg)}
+        content: Any = msg.content
+        if isinstance(content, list):
+            pass
+        else:
+            content = _text_of(msg)
+        item: dict[str, Any] = {"role": msg.role, "content": content}
         if msg.name:
             item["name"] = msg.name
         if msg.tool_call_id:
