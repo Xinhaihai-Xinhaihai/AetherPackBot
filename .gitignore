@@ -16,6 +16,9 @@ data/storage/
 data/config/config.local.json
 scripts/*_result.json
 scripts/_edge_history.db
+scripts/anyrouter_checkin.py
+scripts/anyrouter_checkin.ps1
+scripts/run_anyrouter_checkin.bat
 
 .idea/
 .vscode/
