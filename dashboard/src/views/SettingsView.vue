@@ -10,7 +10,7 @@ const success = ref('')
 
 // Form fields
 const webHost = ref('0.0.0.0')
-const webPort = ref(6185)
+const webPort = ref(7619)
 const adminUsername = ref('aetherpackbot')
 const adminPassword = ref('')
 const logLevel = ref('INFO')
@@ -25,7 +25,7 @@ async function fetchConfig() {
     
     // Populate form fields
     webHost.value = config.value.web?.host || '0.0.0.0'
-    webPort.value = config.value.web?.port || 6185
+    webPort.value = config.value.web?.port || 7619
     adminUsername.value = config.value.web?.admin_username || 'aetherpackbot'
     logLevel.value = config.value.logging?.level || 'INFO'
     agentEnabled.value = config.value.agent?.enabled ?? true
@@ -116,7 +116,7 @@ onMounted(fetchConfig)
                 v-model.number="webPort"
                 type="number"
                 class="input"
-                placeholder="6185"
+                placeholder="7619"
               />
             </div>
           </div>

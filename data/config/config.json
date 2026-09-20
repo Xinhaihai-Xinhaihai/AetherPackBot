@@ -3,7 +3,7 @@
   "debug": false,
   "web": {
     "host": "0.0.0.0",
-    "port": 6185,
+    "port": 7619,
     "enable_cors": true,
     "admin_username": "aetherpackbot",
     "admin_password": "aetherpackbot",
@@ -17,14 +17,59 @@
     "url": "sqlite+aiosqlite:///data/storage/aetherpackbot.db"
   },
   "platforms": [],
-  "providers": [],
+  "providers": [
+    {
+      "id": "ppo",
+      "name": "PPO Compat Gate",
+      "type": "openai_compat",
+      "lane": "cloud",
+      "api_key": "",
+      "api_base_url": "https://api.futureppo.top/v1",
+      "model": "deepseek-v4-flash",
+      "timeout": 60,
+      "enabled": true
+    },
+    {
+      "id": "huachuan",
+      "name": "Huachuan Compat Gate",
+      "type": "openai_compat",
+      "lane": "cloud",
+      "api_key": "",
+      "api_base_url": "http://91vip.txvlogvip.top:3000/v1",
+      "model": "MiniMax-M2.7",
+      "timeout": 60,
+      "enabled": true
+    },
+    {
+      "id": "k3",
+      "name": "K3 TokenRouter",
+      "type": "openai_compat",
+      "lane": "cloud",
+      "api_key": "",
+      "api_base_url": "https://api.tokenrouter.com/v1",
+      "model": "qwen/qwen3.5-9b",
+      "timeout": 60,
+      "enabled": true
+    },
+    {
+      "id": "local-ollama",
+      "name": "Local Ollama",
+      "type": "ollama",
+      "lane": "local",
+      "api_key": "",
+      "api_base_url": "http://127.0.0.1:11434/v1",
+      "model": "llama3",
+      "timeout": 20,
+      "enabled": true
+    }
+  ],
   "plugins": {
     "enabled": true,
     "directory": "data/plugins",
     "auto_update": false
   },
   "agent": {
-    "default_provider": "",
+    "default_provider": "ppo",
     "max_tool_steps": 30,
     "tool_timeout": 60,
     "wake_prefixes": [

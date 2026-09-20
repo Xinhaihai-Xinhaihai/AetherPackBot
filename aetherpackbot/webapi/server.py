@@ -69,7 +69,7 @@ class WebServer:
             port = web_config.port
         except Exception:
             host = "0.0.0.0"
-            port = 6185
+            port = 7619
         
         # Create Quart app
         self._app = Quart(
@@ -210,24 +210,78 @@ class WebServer:
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
         
-        # Provider endpoints
+        # Brain / provider endpoints
         @app.route("/api/providers")
         @require_auth
         async def list_providers():
             from aetherpackbot.providers.manager import ProviderManager
-            
             try:
                 provider_manager = await self._container.resolve(ProviderManager)
-                providers = []
-                
-                for provider_id, provider in provider_manager.get_all().items():
-                    providers.append({
-                        "id": provider_id,
-                        "model": provider.model,
-                        "display_name": provider.config.display_name,
-                    })
-                
-                return jsonify(providers)
+                return jsonify(provider_manager.snapshots())
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/brains")
+        @require_auth
+        async def list_brains():
+            from aetherpackbot.providers.manager import ProviderManager
+            try:
+                provider_manager = await self._container.resolve(ProviderManager)
+                return jsonify(provider_manager.snapshots())
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/brains/dialects")
+        @require_auth
+        async def list_dialects():
+            from aetherpackbot.providers.dialects import DIALECTS
+            names = sorted(set(cls.name for cls in DIALECTS.values()))
+            return jsonify({"dialects": names, "aliases": sorted(DIALECTS.keys())})
+
+        @app.route("/api/brains/pulse", methods=["POST"])
+        @require_auth
+        async def pulse_brains():
+            from aetherpackbot.providers.manager import ProviderManager
+            try:
+                provider_manager = await self._container.resolve(ProviderManager)
+                pulses = await provider_manager.router.pulse_all()
+                return jsonify({
+                    pid: {
+                        "ok": p.ok,
+                        "status": p.status,
+                        "latency_ms": p.latency_ms,
+                        "lane": p.lane,
+                        "hint": p.hint,
+                    }
+                    for pid, p in pulses.items()
+                })
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/brains/chat", methods=["POST"])
+        @require_auth
+        async def brain_chat():
+            from aetherpackbot.protocols.providers import LLMMessage, LLMRequest
+            from aetherpackbot.providers.manager import ProviderManager
+            try:
+                data = await request.get_json() or {}
+                provider_manager = await self._container.resolve(ProviderManager)
+                text = data.get("prompt") or data.get("text") or ""
+                if not text:
+                    return jsonify({"error": "prompt required"}), 400
+                req = LLMRequest(
+                    messages=[LLMMessage(role="user", content=text)],
+                    model=data.get("model"),
+                    temperature=float(data.get("temperature") or 0.7),
+                    max_tokens=data.get("max_tokens"),
+                )
+                resp = await provider_manager.router.chat(req, data.get("provider_id"))
+                return jsonify({
+                    "content": resp.content,
+                    "model": resp.model,
+                    "usage": resp.usage,
+                    "finish_reason": resp.finish_reason,
+                })
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
         
