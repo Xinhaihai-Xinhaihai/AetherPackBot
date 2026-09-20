@@ -24,6 +24,51 @@ class ProviderType(Enum):
 
 
 @dataclass
+class ProviderCapabilities:
+    """Per-model feature toggles and generation parameters."""
+
+    temperature: float = 0.7
+    enable_tools: bool = True
+    enable_vision: bool = True
+    enable_text: bool = True
+    max_tokens: int | None = None
+    stream: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "temperature": float(self.temperature),
+            "enable_tools": bool(self.enable_tools),
+            "enable_vision": bool(self.enable_vision),
+            "enable_text": bool(self.enable_text),
+            "max_tokens": self.max_tokens,
+            "stream": bool(self.stream),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> ProviderCapabilities:
+        if not data:
+            return cls()
+        raw_temp = data.get("temperature", 0.7)
+        try:
+            temp = float(raw_temp)
+        except (TypeError, ValueError):
+            temp = 0.7
+        raw_max = data.get("max_tokens")
+        try:
+            max_tokens = int(raw_max) if raw_max is not None and str(raw_max).strip() != "" else None
+        except (TypeError, ValueError):
+            max_tokens = None
+        return cls(
+            temperature=max(0.0, min(2.0, temp)),
+            enable_tools=bool(data.get("enable_tools", True)),
+            enable_vision=bool(data.get("enable_vision", True)),
+            enable_text=bool(data.get("enable_text", True)),
+            max_tokens=max_tokens if max_tokens is None or max_tokens > 0 else None,
+            stream=bool(data.get("stream", False)),
+        )
+
+
+@dataclass
 class ProviderConfig:
     """Configuration for a provider instance."""
     
@@ -34,6 +79,7 @@ class ProviderConfig:
     api_base_url: str | None = None
     model: str = ""
     enabled: bool = True
+    capabilities: ProviderCapabilities = field(default_factory=ProviderCapabilities)
     extra: dict[str, Any] = field(default_factory=dict)
     
     @property
@@ -47,7 +93,7 @@ class LLMMessage:
     """A message in an LLM conversation."""
     
     role: str  # "system", "user", "assistant", "tool"
-    content: str
+    content: Any = ""
     name: str | None = None
     tool_calls: list[dict[str, Any]] | None = None
     tool_call_id: str | None = None

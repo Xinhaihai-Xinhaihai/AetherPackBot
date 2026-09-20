@@ -258,6 +258,63 @@ class WebServer:
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
+        @app.route("/api/brains/<provider_id>/config", methods=["GET", "PUT"])
+        @require_auth
+        async def brain_config(provider_id: str):
+            from aetherpackbot.storage.config import ConfigurationManager
+            from aetherpackbot.providers.manager import ProviderManager
+            try:
+                provider_manager = await self._container.resolve(ProviderManager)
+                config_manager = await self._container.resolve(ConfigurationManager)
+                node = provider_manager.get(provider_id)
+                if not node:
+                    return jsonify({"error": "provider not found"}), 404
+                if request.method == "GET":
+                    return jsonify(node.snapshot())
+                data = await request.get_json() or {}
+                snap = provider_manager.apply_capabilities(provider_id, data)
+                providers = list(config_manager.get("providers") or [])
+                for item in providers:
+                    if item.get("id") == provider_id:
+                        caps = snap.get("capabilities") or {}
+                        item["capabilities"] = caps
+                        for key in ("temperature", "enable_tools", "enable_vision", "enable_text", "max_tokens"):
+                            if key in caps:
+                                item[key] = caps[key]
+                        break
+                config_manager.set("providers", providers)
+                await config_manager.save()
+                return jsonify(snap)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/mcp")
+        @require_auth
+        async def list_mcp():
+            from aetherpackbot.mcp.client import McpManager
+            try:
+                mcp = await self._container.resolve(McpManager)
+                return jsonify(mcp.snapshots())
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/mcp/<server_id>/bind", methods=["PUT"])
+        @require_auth
+        async def bind_mcp(server_id: str):
+            from aetherpackbot.mcp.client import McpManager
+            try:
+                mcp = await self._container.resolve(McpManager)
+                data = await request.get_json() or {}
+                models = data.get("bind_models") or data.get("models") or []
+                if isinstance(models, str):
+                    models = [models]
+                session = await mcp.bind_models(server_id, models)
+                return jsonify(session.snapshot())
+            except KeyError:
+                return jsonify({"error": "mcp server not found"}), 404
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
         @app.route("/api/brains/chat", methods=["POST"])
         @require_auth
         async def brain_chat():

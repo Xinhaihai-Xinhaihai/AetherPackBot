@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-from aetherpackbot.protocols.providers import ProviderConfig, ProviderType
+from aetherpackbot.protocols.providers import ProviderCapabilities, ProviderConfig, ProviderType
 from aetherpackbot.providers.base import BaseLLMProvider
 from aetherpackbot.providers.cortex import BrainRouter, CortexNode
 from aetherpackbot.providers.dialects import classify_lane, resolve_dialect
@@ -97,6 +97,10 @@ class ProviderManager:
             extra["headers"] = config_data["headers"]
         if config_data.get("custom_headers"):
             extra["headers"] = config_data["custom_headers"]
+        caps_raw = dict(config_data.get("capabilities") or {})
+        for key in ("temperature", "enable_tools", "enable_vision", "enable_text", "max_tokens", "stream"):
+            if key in config_data and key not in caps_raw:
+                caps_raw[key] = config_data[key]
 
         config = ProviderConfig(
             provider_id=config_data.get("id") or f"{dialect_name}_{len(self._providers)}",
@@ -106,6 +110,7 @@ class ProviderManager:
             api_base_url=api_base,
             model=config_data.get("model") or "",
             enabled=config_data.get("enabled", True),
+            capabilities=ProviderCapabilities.from_dict(caps_raw),
             extra=extra,
         )
         dialect = resolve_dialect(dialect_name, self._lane)
@@ -152,6 +157,13 @@ class ProviderManager:
 
     def snapshots(self) -> list[dict[str, Any]]:
         return [n.snapshot() for n in self._providers.values()]
+
+    def apply_capabilities(self, provider_id: str, caps: dict[str, Any]) -> dict[str, Any]:
+        node = self._router.get(provider_id)
+        if not node:
+            raise KeyError(f"provider not found: {provider_id}")
+        node.apply_capabilities(caps)
+        return node.snapshot()
 
     async def health_check_all(self) -> dict[str, bool]:
         pulses = await self._router.pulse_all()

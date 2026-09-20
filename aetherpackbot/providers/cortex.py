@@ -12,8 +12,10 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator
 
 from aetherpackbot.protocols.providers import (
+    LLMMessage,
     LLMRequest,
     LLMResponse,
+    ProviderCapabilities,
     ProviderConfig,
     StreamingChunk,
 )
@@ -25,6 +27,35 @@ from aetherpackbot.kernel.logging import get_logger
 logger = get_logger("brain.cortex")
 
 RETRYABLE = {408, 409, 425, 429, 500, 502, 503, 504}
+
+
+def _shape_message(msg: LLMMessage, caps: ProviderCapabilities) -> LLMMessage:
+    content = msg.content
+    if isinstance(content, list):
+        kept: list[Any] = []
+        for part in content:
+            if not isinstance(part, dict):
+                if caps.enable_text:
+                    kept.append(part)
+                continue
+            kind = str(part.get("type") or "")
+            is_image = kind in {"image", "image_url", "input_image"} or "image_url" in part
+            if is_image and not caps.enable_vision:
+                continue
+            if (not is_image) and not caps.enable_text:
+                continue
+            kept.append(part)
+        content = kept if kept else ("" if not caps.enable_text else content)
+    elif not caps.enable_text:
+        content = ""
+    return LLMMessage(
+        role=msg.role,
+        content=content,
+        name=msg.name,
+        tool_calls=msg.tool_calls if caps.enable_tools else None,
+        tool_call_id=msg.tool_call_id,
+        metadata=msg.metadata,
+    )
 
 
 @dataclass
@@ -57,6 +88,7 @@ class CortexNode(BaseLLMProvider):
         self.dialect = dialect
         self.lane_kind = lane_kind
         self.timeout = float((config.extra or {}).get("timeout") or 60)
+        self.capabilities = config.capabilities or ProviderCapabilities()
         self.pulse_state = Pulse(lane=lane_kind)
         self.stats = CortexStats()
         self._lock = asyncio.Lock()
@@ -87,7 +119,37 @@ class CortexNode(BaseLLMProvider):
             s += 8  # local gate is cheaper and usually faster
         return s
 
+    def apply_capabilities(self, caps: ProviderCapabilities | dict[str, Any]) -> ProviderCapabilities:
+        if isinstance(caps, dict):
+            caps = ProviderCapabilities.from_dict({**self.capabilities.to_dict(), **caps})
+        self.capabilities = caps
+        self._config.capabilities = caps
+        return self.capabilities
+
+    def shape_request(self, request: LLMRequest) -> LLMRequest:
+        caps = self.capabilities
+        if not caps.enable_text and not caps.enable_vision:
+            raise RuntimeError(f"cortex {self.provider_id}: text and vision both off")
+        messages = [_shape_message(m, caps) for m in request.messages]
+        tools = request.tools if caps.enable_tools else None
+        tool_choice = request.tool_choice if caps.enable_tools else None
+        temperature = caps.temperature if request.temperature in (None, 0.7) else request.temperature
+        if request.extra.get("use_node_temperature", True):
+            temperature = caps.temperature
+        max_tokens = request.max_tokens if request.max_tokens is not None else caps.max_tokens
+        return LLMRequest(
+            messages=messages,
+            model=request.model or self._model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_choice=tool_choice,
+            stream=request.stream,
+            extra=request.extra,
+        )
+
     async def chat(self, request: LLMRequest) -> LLMResponse:
+        request = self.shape_request(request)
         last_err: Exception | None = None
         for attempt in range(1, 4):
             t0 = time.time()
@@ -115,6 +177,7 @@ class CortexNode(BaseLLMProvider):
         raise last_err or RuntimeError("chat failed")
 
     async def chat_stream(self, request: LLMRequest) -> AsyncIterator[StreamingChunk]:
+        request = self.shape_request(request)
         t0 = time.time()
         try:
             async for chunk in self.dialect.chat_stream(
@@ -186,6 +249,8 @@ class CortexNode(BaseLLMProvider):
             "healthy": self.healthy,
             "score": round(self.score(), 2),
             "timeout": self.timeout,
+            "enabled": self._config.enabled,
+            "capabilities": self.capabilities.to_dict(),
             "pulse": {
                 "ok": self.pulse_state.ok,
                 "status": self.pulse_state.status,

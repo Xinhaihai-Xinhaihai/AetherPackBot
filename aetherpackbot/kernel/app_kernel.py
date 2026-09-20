@@ -153,6 +153,13 @@ class ApplicationKernel:
         await provider_manager.initialize()
         self._container.register_instance(ProviderManager, provider_manager)
         self._lifecycle.register(provider_manager, priority=80)
+
+        # MCP layer — separate from Brain knobs, bindable to many models
+        from aetherpackbot.mcp.client import McpManager
+        mcp_manager = McpManager(self._container)
+        await mcp_manager.initialize()
+        self._container.register_instance(McpManager, mcp_manager)
+        self._lifecycle.register(mcp_manager, priority=75)
         
         # Platform manager
         from aetherpackbot.platforms.manager import PlatformManager

@@ -49,6 +49,11 @@ DEFAULT_CONFIG = {
     
     # Provider settings
     "providers": [],
+
+    # MCP servers (separate from Brain knobs). One server can bind many models.
+    "mcp": {
+        "servers": [],
+    },
     
     # Plugin settings
     "plugins": {
