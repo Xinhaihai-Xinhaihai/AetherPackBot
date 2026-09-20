@@ -1,44 +1,89 @@
 # AetherPackBot
 
-Multi-platform LLM chatbot and development framework.
+Harbor + Brain. IM vendors dock at the harbor. Models sit in the brain. The agent only sees cargo.
 
-## Features
+HTTP/WS direct. No vendor SDKs.
 
-- 🤖 Multi-LLM support: OpenAI, Anthropic, Google Gemini, and more
-- 📱 Multi-platform: Telegram, Discord, QQ, Slack, DingTalk, Lark
-- 🔌 Plugin system: Extensible plugin architecture
-- 🧠 Agent system: Tool-calling with automatic orchestration
-- 🌐 Web dashboard: Vue.js based management interface
-- 💾 Persistent storage: SQLite with SQLAlchemy ORM
+## What it is
 
-## Quick Start
+AetherPackBot is a local chatbot kernel with two docks:
 
-```bash
-# Install dependencies
-pip install uv
-uv sync
+- **Harbor** — message dock. Each IM is a berth. A live connection is a slip. HarborMaster picks a live slip. Incoming traffic becomes a Manifest.
+- **Brain** — model dock. Cortex nodes talk OpenAI-compat / Ollama over one wire. The router picks a live node.
 
-# Run the bot
-uv run main.py
+Dashboard: `http://127.0.0.1:7619`
+
+## Quick start
+
+Windows:
+
+```bat
+start_aetherpackbot.bat
 ```
 
-## Architecture
+Or:
+
+```bash
+python main.py
+```
+
+Config lives in `data/config/config.json`. Keep keys local. The copy in git has blank `api_key` fields.
+
+## Harbor berths
+
+Direct HTTP/WS dialects, no official bot SDK:
+
+| Berth | Notes |
+| --- | --- |
+| `weixin_ilink` | Personal WeChat via ilink HTTP |
+| `onebot` | OneBot v11. NapCat / SnowLuma / LLOneBot / Lagrange / go-cqhttp are the same dialect, different protocol sides |
+| `qq_official` | QQ official bot HTTP |
+| `telegram` | Bot API HTTP |
+| `discord` | REST HTTP |
+| `facebook` / `instagram` | Graph HTTP |
+| `line` | Messaging API HTTP |
+| `slack` | Web API HTTP |
+| `kook` | KOOK HTTP |
+| `lark` | Feishu HTTP |
+| `dingtalk` | DingTalk HTTP |
+
+Put accounts under `platforms` in `config.json`. Empty list means Harbor is up but nothing is moored.
+
+## Brain
+
+Providers in `config.json`:
+
+- `openai_compat` — any OpenAI-style gate
+- `ollama` — local lane
+
+Lane is `cloud` or `local`. Brain registers cortex nodes at boot.
+
+## Layout
 
 ```
 aetherpackbot/
-├── kernel/          # Core kernel (lifecycle, container, events)
-├── protocols/       # Abstract protocols and interfaces
-├── messaging/       # Message handling and processing
-├── platforms/       # Platform adapters (Telegram, Discord, etc.)
-├── providers/       # LLM provider implementations
-├── plugins/         # Plugin system
-├── agents/          # Agent system with tool calling
-├── storage/         # Database and persistence
-├── webapi/          # REST API and WebSocket server
-├── cli/             # Command-line interface
-└── extensions/      # Built-in extensions
+├── harbor/          # berth, slip, wire, HarborMaster
+├── providers/       # cortex, dialects, Brain router
+├── kernel/          # lifecycle
+├── protocols/       # shared contracts
+├── messaging/       # message pipeline
+├── platforms/       # thin wrap over Harbor
+├── agents/          # tool-calling agent
+├── plugins/         # plugins
+├── storage/         # config + sqlite
+├── webapi/          # dashboard API on :7619
+├── cli/             # boot
+└── extensions/      # built-in commands
+```
+
+## Probe
+
+Harbor reachability (needs live tokens / a local OneBot side):
+
+```bat
+scripts\run_harbor_probe.bat
 ```
 
 ## License
 
-MIT License
+MIT
