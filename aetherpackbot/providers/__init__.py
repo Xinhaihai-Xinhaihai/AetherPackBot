@@ -1,13 +1,12 @@
-"""
-Provider Layer - LLM and service provider management.
-
-Manages LLM providers (OpenAI, Anthropic, etc.) and other AI services.
-"""
+"""Brain layer — dialects, cortex nodes, router."""
 
 from aetherpackbot.providers.manager import ProviderManager
 from aetherpackbot.providers.base import BaseLLMProvider
+from aetherpackbot.providers.cortex import CortexNode, BrainRouter
 
 __all__ = [
     "ProviderManager",
     "BaseLLMProvider",
+    "CortexNode",
+    "BrainRouter",
 ]

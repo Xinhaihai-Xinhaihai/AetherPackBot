@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any, TYPE_CHECKING
 
+from aetherpackbot.harbor.berth import BERTHS, resolve_berth
+from aetherpackbot.harbor.manager import HarborMaster
 from aetherpackbot.protocols.platforms import (
     BasePlatformAdapter,
     PlatformConfig,

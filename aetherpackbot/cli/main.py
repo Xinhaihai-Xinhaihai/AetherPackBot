@@ -352,7 +352,7 @@ def cmd_init(args) -> int:
         default_config = {
             "web": {
                 "host": "0.0.0.0",
-                "port": 6185,
+                "port": 7619,
                 "admin_username": "aetherpackbot",
                 "admin_password": "aetherpackbot",
             },
