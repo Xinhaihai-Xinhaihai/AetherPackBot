@@ -1,0 +1,12 @@
+services:
+  aetherpackbot:
+    build: .
+    image: aetherpackbot:latest
+    container_name: aetherpackbot
+    restart: unless-stopped
+    ports:
+      - "7619:7619"
+    volumes:
+      - ./data:/app/data
+    environment:
+      PYTHONUNBUFFERED: "1"

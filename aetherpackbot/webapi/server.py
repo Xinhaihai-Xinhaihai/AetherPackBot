@@ -419,10 +419,10 @@ class WebServer:
             if path.exists():
                 return path
         
-        # Check data/dist
-        data_dist = Path("data/dist")
-        if data_dist.exists():
-            return data_dist
+        # Check data/dist first, then the dashboard build output
+        for candidate in (Path("data/dist"), Path("dashboard/dist")):
+            if (candidate / "index.html").exists():
+                return candidate
         
         return None
     

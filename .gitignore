@@ -20,6 +20,13 @@ scripts/anyrouter_checkin.py
 scripts/anyrouter_checkin.ps1
 scripts/run_anyrouter_checkin.bat
 
+desktop/**/bin/
+desktop/**/obj/
+desktop/**/*.user
+*.pdb
+Microsoft.Web.WebView2.*.xml
+AetherPackBot.exe.WebView2/
+
 .idea/
 .vscode/
 .DS_Store
