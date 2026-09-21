@@ -223,8 +223,11 @@ class PlatformManager:
         """Get status of all platform adapters."""
         return {
             platform_id: {
+                "id": platform_id,
+                "name": getattr(adapter.config, "display_name", platform_id),
                 "status": adapter.status.name,
                 "type": adapter.platform_type,
+                "running": adapter.status.name in {"CONNECTED", "RUNNING", "STARTED"},
                 "capabilities": {
                     "supports_text": adapter.capabilities.supports_text,
                     "supports_images": adapter.capabilities.supports_images,
@@ -233,6 +236,77 @@ class PlatformManager:
             }
             for platform_id, adapter in self._adapters.items()
         }
+
+    def list_snapshots(self) -> list[dict[str, Any]]:
+        return list(self.get_status().values())
+
+    async def start_platform(self, platform_id: str) -> dict[str, Any]:
+        adapter = self.get_adapter(platform_id)
+        if not adapter:
+            raise KeyError(f"platform not found: {platform_id}")
+        await self._start_adapter(adapter)
+        await self._set_enabled(platform_id, True)
+        return self.get_status()[platform_id]
+
+    async def stop_platform(self, platform_id: str) -> dict[str, Any]:
+        adapter = self.get_adapter(platform_id)
+        if not adapter:
+            raise KeyError(f"platform not found: {platform_id}")
+        await adapter.stop()
+        await self._set_enabled(platform_id, False)
+        return self.get_status()[platform_id]
+
+    async def add_platform(self, config_data: dict[str, Any]) -> dict[str, Any]:
+        adapter = await self.register_from_config(config_data)
+        if config_data.get("enabled", True):
+            await self._start_adapter(adapter)
+        await self._upsert_config(config_data, adapter.platform_id)
+        return self.get_status()[adapter.platform_id]
+
+    async def delete_platform(self, platform_id: str) -> None:
+        adapter = self.get_adapter(platform_id)
+        if adapter:
+            try:
+                await adapter.stop()
+            except Exception as e:
+                logger.warning(f"stop {platform_id} on delete: {e}")
+            self.unregister(platform_id)
+        await self._drop_config(platform_id)
+
+    async def _set_enabled(self, platform_id: str, enabled: bool) -> None:
+        from aetherpackbot.storage.config import ConfigurationManager
+        config_manager = await self._container.resolve(ConfigurationManager)
+        platforms = list(config_manager.get("platforms") or [])
+        for item in platforms:
+            if item.get("id") == platform_id:
+                item["enabled"] = enabled
+                break
+        config_manager.set("platforms", platforms)
+        await config_manager.save()
+
+    async def _upsert_config(self, config_data: dict[str, Any], platform_id: str) -> None:
+        from aetherpackbot.storage.config import ConfigurationManager
+        config_manager = await self._container.resolve(ConfigurationManager)
+        platforms = list(config_manager.get("platforms") or [])
+        payload = dict(config_data)
+        payload["id"] = platform_id
+        found = False
+        for i, item in enumerate(platforms):
+            if item.get("id") == platform_id:
+                platforms[i] = payload
+                found = True
+                break
+        if not found:
+            platforms.append(payload)
+        config_manager.set("platforms", platforms)
+        await config_manager.save()
+
+    async def _drop_config(self, platform_id: str) -> None:
+        from aetherpackbot.storage.config import ConfigurationManager
+        config_manager = await self._container.resolve(ConfigurationManager)
+        platforms = [p for p in (config_manager.get("platforms") or []) if p.get("id") != platform_id]
+        config_manager.set("platforms", platforms)
+        await config_manager.save()
 
 
 # Built-in platform adapter implementations

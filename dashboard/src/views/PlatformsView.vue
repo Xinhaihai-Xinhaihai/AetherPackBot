@@ -1,122 +1,149 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getPlatforms } from '@/services/api'
+import { getPlatforms, addPlatform, startPlatform, stopPlatform, deletePlatform } from '@/services/api'
+import { useI18n } from '@/i18n'
 
-const platforms = ref<Record<string, boolean>>({})
+interface Platform {
+  id: string
+  name?: string
+  type?: string
+  status?: string
+  running?: boolean
+}
+
+const { t } = useI18n()
+const platforms = ref<Platform[]>([])
 const loading = ref(true)
 const error = ref('')
+const notice = ref('')
+const busy = ref('')
+const showAdd = ref(false)
+const form = ref({ id: '', type: 'telegram', name: '', token: '' })
 
 async function fetchPlatforms() {
   loading.value = true
   error.value = ''
-  
   try {
-    platforms.value = await getPlatforms()
-  } catch (e) {
-    error.value = '获取平台列表失败'
+    const data = await getPlatforms()
+    platforms.value = data.map((item: any) => ({
+      id: item.id || item.name,
+      name: item.name || item.id,
+      type: item.type || '',
+      status: item.status,
+      running: !!item.running,
+    }))
+  } catch {
+    error.value = t.value.platforms.fail
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchPlatforms)
-
-function getPlatformIcon(name: string): string {
-  const lower = name.toLowerCase()
-  if (lower.includes('telegram')) return 'telegram'
-  if (lower.includes('discord')) return 'discord'
-  if (lower.includes('qq')) return 'qq'
-  if (lower.includes('wechat') || lower.includes('weixin')) return 'wechat'
-  return 'default'
+async function toggle(p: Platform) {
+  busy.value = p.id
+  try {
+    if (p.running) {
+      await stopPlatform(p.id)
+      notice.value = `${p.id} ${t.value.platforms.stopped}`
+    } else {
+      await startPlatform(p.id)
+      notice.value = `${p.id} ${t.value.platforms.started}`
+    }
+    await fetchPlatforms()
+  } catch {
+    error.value = t.value.common.fail
+  } finally {
+    busy.value = ''
+  }
 }
+
+async function remove(p: Platform) {
+  if (!confirm(p.id)) return
+  busy.value = p.id
+  try {
+    await deletePlatform(p.id)
+    notice.value = `${p.id} ${t.value.platforms.deleted}`
+    await fetchPlatforms()
+  } catch {
+    error.value = t.value.common.fail
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function submit() {
+  busy.value = 'add'
+  try {
+    await addPlatform({
+      id: form.value.id || `${form.value.type}_${Date.now()}`,
+      type: form.value.type,
+      name: form.value.name || form.value.type,
+      enabled: true,
+      credentials: form.value.token ? { bot_token: form.value.token } : {},
+    })
+    showAdd.value = false
+    notice.value = t.value.platforms.added
+    await fetchPlatforms()
+  } catch {
+    error.value = t.value.common.fail
+  } finally {
+    busy.value = ''
+  }
+}
+
+onMounted(fetchPlatforms)
 </script>
 
 <template>
   <div class="p-8">
-    <!-- Header -->
     <div class="flex items-center justify-between mb-8">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">消息平台</h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-1">管理连接的消息平台</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t.platforms.title }}</h1>
+        <p class="text-gray-500 mt-1">{{ t.platforms.sub }}</p>
       </div>
-      <button class="btn-primary">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        添加平台
-      </button>
+      <button type="button" class="btn-primary" @click="showAdd = !showAdd">{{ t.platforms.add }}</button>
     </div>
 
-    <!-- Loading -->
+    <div v-if="notice" class="mb-4 p-3 rounded-lg bg-green-50 text-sm text-green-700">{{ notice }}</div>
+    <div v-if="error && !loading" class="mb-4 p-3 rounded-lg bg-red-50 text-sm text-red-600">{{ error }}</div>
+
+    <div v-if="showAdd" class="card mb-6 space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <input v-model="form.id" class="input" :placeholder="t.platforms.id" />
+        <select v-model="form.type" class="input">
+          <option value="telegram">telegram</option>
+          <option value="discord">discord</option>
+        </select>
+        <input v-model="form.name" class="input" :placeholder="t.platforms.name" />
+        <input v-model="form.token" class="input" :placeholder="t.platforms.token" />
+      </div>
+      <button type="button" class="btn-primary" :disabled="busy === 'add'" @click="submit">{{ t.common.save }}</button>
+    </div>
+
     <div v-if="loading" class="flex items-center justify-center h-64">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
     </div>
 
-    <!-- Error -->
-    <div v-else-if="error" class="card">
-      <div class="text-center py-8">
-        <p class="text-red-500">{{ error }}</p>
-        <button @click="fetchPlatforms" class="btn-primary mt-4">重试</button>
-      </div>
+    <div v-else-if="platforms.length === 0" class="card text-center py-12">
+      <h3 class="text-lg font-medium">{{ t.platforms.empty }}</h3>
+      <p class="text-gray-500 mt-2">{{ t.platforms.emptyHint }}</p>
+      <button type="button" class="btn-primary mt-6" @click="showAdd = true">{{ t.platforms.add }}</button>
     </div>
 
-    <!-- Content -->
-    <div v-else>
-      <!-- Empty state -->
-      <div v-if="Object.keys(platforms).length === 0" class="card text-center py-12">
-        <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-        </svg>
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mt-4">暂无平台</h3>
-        <p class="text-gray-500 dark:text-gray-400 mt-2">添加一个消息平台开始接收消息</p>
-        <button class="btn-primary mt-6">添加平台</button>
-      </div>
-
-      <!-- Platforms grid -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div
-          v-for="(running, name) in platforms"
-          :key="name"
-          class="card hover:shadow-md transition-shadow"
-        >
-          <div class="flex items-start justify-between">
-            <div class="flex items-center gap-4">
-              <div 
-                :class="[
-                  'w-12 h-12 rounded-xl flex items-center justify-center',
-                  running 
-                    ? 'bg-gradient-to-br from-green-500 to-green-600' 
-                    : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                ]"
-              >
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="font-semibold text-gray-900 dark:text-white">{{ name }}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ getPlatformIcon(name) }}
-                </p>
-              </div>
-            </div>
-            <span :class="running ? 'badge-success' : 'badge-error'">
-              {{ running ? '运行中' : '已停止' }}
-            </span>
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="p in platforms" :key="p.id" class="card">
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="font-semibold">{{ p.name || p.id }}</h3>
+            <p class="text-sm text-gray-500">{{ p.type || p.id }}</p>
           </div>
-          
-          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between">
-            <button 
-              :class="running ? 'btn-ghost text-red-600' : 'btn-ghost text-green-600'"
-              class="text-sm px-3 py-1"
-            >
-              {{ running ? '停止' : '启动' }}
-            </button>
-            <div class="flex gap-2">
-              <button class="btn-ghost text-sm px-3 py-1">编辑</button>
-              <button class="btn-ghost text-sm px-3 py-1 text-red-600">删除</button>
-            </div>
-          </div>
+          <span :class="p.running ? 'badge-success' : 'badge-error'">{{ p.running ? t.common.running : t.common.stopped }}</span>
+        </div>
+        <div class="mt-4 pt-4 border-t flex justify-between">
+          <button type="button" class="btn-ghost text-sm" :disabled="busy === p.id" @click="toggle(p)">
+            {{ p.running ? t.common.stop : t.common.start }}
+          </button>
+          <button type="button" class="btn-ghost text-sm text-red-600" :disabled="busy === p.id" @click="remove(p)">{{ t.common.delete }}</button>
         </div>
       </div>
     </div>

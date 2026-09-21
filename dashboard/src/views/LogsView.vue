@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { getLogs } from '@/services/api'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 interface LogEntry {
   timestamp: string
@@ -23,7 +26,7 @@ async function fetchLogs() {
     logs.value = await getLogs(500)
     error.value = ''
   } catch (e) {
-    error.value = '获取日志失败'
+    error.value = t.value.logs.fail
   } finally {
     loading.value = false
   }
@@ -118,8 +121,8 @@ onUnmounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">系统日志</h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-1">实时查看系统运行日志</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t.logs.title }}</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">{{ t.logs.sub }}</p>
       </div>
       <div class="flex items-center gap-4">
         <button 
@@ -132,9 +135,9 @@ onUnmounted(() => {
           <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {{ autoRefresh ? '自动刷新中' : '自动刷新' }}
+          {{ autoRefresh ? t.logs.autoOn : t.logs.autoOff }}
         </button>
-        <button @click="fetchLogs" class="btn-secondary text-sm">刷新</button>
+        <button type="button" @click="fetchLogs" class="btn-secondary text-sm">{{ t.common.refresh }}</button>
       </div>
     </div>
 
@@ -144,16 +147,16 @@ onUnmounted(() => {
         v-model="filter"
         type="text"
         class="input max-w-sm"
-        placeholder="搜索日志..."
+        :placeholder="t.logs.search"
       />
       <select v-model="levelFilter" class="input max-w-xs">
-        <option value="all">所有级别</option>
+        <option value="all">{{ t.logs.all }}</option>
         <option value="DEBUG">DEBUG</option>
         <option value="INFO">INFO</option>
         <option value="WARNING">WARNING</option>
         <option value="ERROR">ERROR</option>
       </select>
-      <span class="text-sm text-gray-500">共 {{ filteredLogs.length }} 条</span>
+      <span class="text-sm text-gray-500">{{ filteredLogs.length }} {{ t.logs.total }}</span>
     </div>
 
     <!-- Loading -->
@@ -165,7 +168,7 @@ onUnmounted(() => {
     <div v-else-if="error" class="card">
       <div class="text-center py-8">
         <p class="text-red-500">{{ error }}</p>
-        <button @click="fetchLogs" class="btn-primary mt-4">重试</button>
+        <button type="button" @click="fetchLogs" class="btn-primary mt-4">{{ t.common.retry }}</button>
       </div>
     </div>
 
@@ -176,7 +179,7 @@ onUnmounted(() => {
     >
       <div class="h-full overflow-y-auto p-4 scrollbar-thin">
         <div v-if="filteredLogs.length === 0" class="text-center py-8 text-gray-500">
-          暂无日志
+          {{ t.logs.empty }}
         </div>
         <div 
           v-for="(log, index) in filteredLogs"

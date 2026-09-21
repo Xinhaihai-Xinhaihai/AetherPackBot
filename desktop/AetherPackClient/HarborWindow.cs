@@ -99,8 +99,11 @@ internal sealed class HarborWindow : Form
             _web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             _web.CoreWebView2.Settings.IsStatusBarEnabled = false;
             _web.CoreWebView2.Navigate(WebUrl);
-            _web.Visible = true;
             _boot.Visible = false;
+            _boot.Enabled = false;
+            Controls.Remove(_boot);
+            _web.Visible = true;
+            _web.BringToFront();
             _pageReady = true;
             SetStatus("live  http://127.0.0.1:7619");
         }

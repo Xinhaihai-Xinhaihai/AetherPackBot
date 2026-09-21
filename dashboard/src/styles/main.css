@@ -20,7 +20,8 @@
   }
   
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500
+           relative z-10 pointer-events-auto cursor-pointer;
   }
   
   .btn-secondary {

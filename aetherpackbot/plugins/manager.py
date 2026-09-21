@@ -292,6 +292,30 @@ class PluginManager:
         
         return False
     
+    async def uninstall_plugin(self, plugin_name: str) -> bool:
+        managed = self._plugins.get(plugin_name)
+        if not managed:
+            return False
+        if managed.is_builtin:
+            raise PermissionError("builtin plugin cannot be uninstalled")
+        if managed.status == PluginStatus.ENABLED:
+            await self._disable_plugin(managed)
+        try:
+            await managed.plugin.on_unload()
+        except Exception as e:
+            logger.warning(f"unload {plugin_name}: {e}")
+        del self._plugins[plugin_name]
+        path = Path(managed.module_path)
+        target = path.parent if path.is_file() else path
+        if self._user_dir.resolve() in target.resolve().parents or target.resolve() == self._user_dir.resolve():
+            import shutil
+            if target.is_dir() and target.resolve() != self._user_dir.resolve():
+                shutil.rmtree(target, ignore_errors=True)
+            elif path.is_file():
+                path.unlink(missing_ok=True)
+        logger.info(f"Uninstalled plugin: {plugin_name}")
+        return True
+
     def get_plugin(self, name: str) -> ManagedPlugin | None:
         """Get a plugin by name."""
         return self._plugins.get(name)

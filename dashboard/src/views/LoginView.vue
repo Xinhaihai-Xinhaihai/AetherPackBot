@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useI18n } from '@/i18n'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t, locale, setLocale } = useI18n()
 
 const username = ref('')
 const password = ref('')
@@ -13,7 +15,7 @@ const error = ref('')
 
 async function handleLogin() {
   if (!username.value || !password.value) {
-    error.value = '请输入用户名和密码'
+    error.value = t.value.login.needBoth
     return
   }
 
@@ -26,10 +28,10 @@ async function handleLogin() {
     if (success) {
       router.push('/')
     } else {
-      error.value = '用户名或密码错误'
+      error.value = t.value.login.bad
     }
   } catch (e) {
-    error.value = '登录失败，请稍后重试'
+    error.value = t.value.login.fail
   } finally {
     loading.value = false
   }
@@ -50,8 +52,12 @@ onMounted(() => {
         <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl shadow-lg mb-4">
           <span class="text-white font-bold text-2xl">A</span>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">AetherPackBot</h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-2">登录到管理面板</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t.app }}</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-2">{{ t.login.title }}</p>
+        <div class="mt-3 flex justify-center gap-2">
+          <button type="button" class="text-xs" :class="locale === 'zh' ? 'text-primary-600' : 'text-gray-400'" @click="setLocale('zh')">{{ t.langZh }}</button>
+          <button type="button" class="text-xs" :class="locale === 'en' ? 'text-primary-600' : 'text-gray-400'" @click="setLocale('en')">{{ t.langEn }}</button>
+        </div>
       </div>
 
       <!-- Login form -->
@@ -65,14 +71,14 @@ onMounted(() => {
           <!-- Username -->
           <div>
             <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              用户名
+              {{ t.login.username }}
             </label>
             <input
               id="username"
               v-model="username"
               type="text"
               class="input"
-              placeholder="请输入用户名"
+              :placeholder="t.login.userPh"
               autocomplete="username"
             />
           </div>
@@ -80,14 +86,14 @@ onMounted(() => {
           <!-- Password -->
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              密码
+              {{ t.login.password }}
             </label>
             <input
               id="password"
               v-model="password"
               type="password"
               class="input"
-              placeholder="请输入密码"
+              :placeholder="t.login.passPh"
               autocomplete="current-password"
             />
           </div>
@@ -102,14 +108,14 @@ onMounted(() => {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            {{ loading ? '登录中...' : '登录' }}
+            {{ loading ? t.login.submitting : t.login.submit }}
           </button>
         </form>
 
         <!-- Footer -->
         <div class="mt-6 text-center">
           <p class="text-xs text-gray-500 dark:text-gray-400">
-            默认账号: aetherpackbot / aetherpackbot
+            {{ t.login.hint }}
           </p>
         </div>
       </div>

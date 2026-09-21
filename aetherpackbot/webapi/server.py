@@ -156,7 +156,11 @@ class WebServer:
             
             try:
                 platform_manager = await self._container.resolve(PlatformManager)
-                status["platforms"] = platform_manager.get_status()
+                raw = platform_manager.get_status()
+                status["platforms"] = {
+                    key: bool(value.get("running")) if isinstance(value, dict) else bool(value)
+                    for key, value in raw.items()
+                }
             except Exception:
                 pass
             
@@ -298,6 +302,50 @@ class WebServer:
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
+        @app.route("/api/mcp", methods=["POST"])
+        @require_auth
+        async def add_mcp():
+            from aetherpackbot.mcp.client import McpManager
+            from aetherpackbot.storage.config import ConfigurationManager
+            try:
+                mcp = await self._container.resolve(McpManager)
+                config_manager = await self._container.resolve(ConfigurationManager)
+                data = await request.get_json() or {}
+                servers = list(config_manager.get("mcp.servers") or [])
+                sid = str(data.get("id") or f"mcp_{len(servers)+1}")
+                data["id"] = sid
+                found = False
+                for i, item in enumerate(servers):
+                    if item.get("id") == sid:
+                        servers[i] = data
+                        found = True
+                        break
+                if not found:
+                    servers.append(data)
+                config_manager.set("mcp.servers", servers)
+                await config_manager.save()
+                await mcp.apply_config(servers)
+                session = mcp.sessions.get(sid)
+                return jsonify(session.snapshot() if session else data), 201
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/mcp/<server_id>", methods=["DELETE"])
+        @require_auth
+        async def delete_mcp(server_id: str):
+            from aetherpackbot.mcp.client import McpManager
+            from aetherpackbot.storage.config import ConfigurationManager
+            try:
+                mcp = await self._container.resolve(McpManager)
+                config_manager = await self._container.resolve(ConfigurationManager)
+                servers = [s for s in (config_manager.get("mcp.servers") or []) if s.get("id") != server_id]
+                config_manager.set("mcp.servers", servers)
+                await config_manager.save()
+                await mcp.apply_config(servers)
+                return jsonify({"success": True})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
         @app.route("/api/mcp/<server_id>/bind", methods=["PUT"])
         @require_auth
         async def bind_mcp(server_id: str):
@@ -350,7 +398,54 @@ class WebServer:
             
             try:
                 platform_manager = await self._container.resolve(PlatformManager)
-                return jsonify(platform_manager.get_status())
+                return jsonify(platform_manager.list_snapshots())
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/platforms", methods=["POST"])
+        @require_auth
+        async def add_platform():
+            from aetherpackbot.platforms.manager import PlatformManager
+            try:
+                platform_manager = await self._container.resolve(PlatformManager)
+                data = await request.get_json() or {}
+                snap = await platform_manager.add_platform(data)
+                return jsonify(snap), 201
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/platforms/<platform_id>/start", methods=["POST"])
+        @require_auth
+        async def start_platform(platform_id: str):
+            from aetherpackbot.platforms.manager import PlatformManager
+            try:
+                platform_manager = await self._container.resolve(PlatformManager)
+                return jsonify(await platform_manager.start_platform(platform_id))
+            except KeyError:
+                return jsonify({"error": "platform not found"}), 404
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/platforms/<platform_id>/stop", methods=["POST"])
+        @require_auth
+        async def stop_platform(platform_id: str):
+            from aetherpackbot.platforms.manager import PlatformManager
+            try:
+                platform_manager = await self._container.resolve(PlatformManager)
+                return jsonify(await platform_manager.stop_platform(platform_id))
+            except KeyError:
+                return jsonify({"error": "platform not found"}), 404
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/platforms/<platform_id>", methods=["DELETE"])
+        @require_auth
+        async def delete_platform(platform_id: str):
+            from aetherpackbot.platforms.manager import PlatformManager
+            try:
+                platform_manager = await self._container.resolve(PlatformManager)
+                await platform_manager.delete_platform(platform_id)
+                return jsonify({"success": True})
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
         
@@ -390,6 +485,21 @@ class WebServer:
                 if success:
                     return jsonify({"success": True})
                 return jsonify({"error": "Plugin not found"}), 404
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route("/api/plugins/<plugin_name>", methods=["DELETE"])
+        @require_auth
+        async def uninstall_plugin(plugin_name: str):
+            from aetherpackbot.plugins.manager import PluginManager
+            try:
+                plugin_manager = await self._container.resolve(PluginManager)
+                ok = await plugin_manager.uninstall_plugin(plugin_name)
+                if ok:
+                    return jsonify({"success": True})
+                return jsonify({"error": "Plugin not found"}), 404
+            except PermissionError as e:
+                return jsonify({"error": str(e)}), 400
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
         
