@@ -49,19 +49,50 @@ export async function updateConfig(data: Record<string, any>) {
   return response.data
 }
 
+function asList<T = any>(data: any): T[] {
+  if (Array.isArray(data)) return data as T[]
+  if (data && Array.isArray(data.items)) return data.items as T[]
+  return []
+}
+
 export async function getProviders() {
   const response = await api.get('/api/providers')
+  return asList(response.data)
+}
+
+export async function pulseBrains() {
+  const response = await api.post('/api/brains/pulse')
   return response.data
 }
 
 export async function getPlatforms() {
   const response = await api.get('/api/platforms')
+  return asList(response.data)
+}
+
+export async function addPlatform(data: Record<string, any>) {
+  const response = await api.post('/api/platforms', data)
+  return response.data
+}
+
+export async function startPlatform(id: string) {
+  const response = await api.post(`/api/platforms/${id}/start`)
+  return response.data
+}
+
+export async function stopPlatform(id: string) {
+  const response = await api.post(`/api/platforms/${id}/stop`)
+  return response.data
+}
+
+export async function deletePlatform(id: string) {
+  const response = await api.delete(`/api/platforms/${id}`)
   return response.data
 }
 
 export async function getPlugins() {
   const response = await api.get('/api/plugins')
-  return response.data
+  return asList(response.data)
 }
 
 export async function reloadPlugin(name: string) {
@@ -69,9 +100,14 @@ export async function reloadPlugin(name: string) {
   return response.data
 }
 
+export async function uninstallPlugin(name: string) {
+  const response = await api.delete(`/api/plugins/${name}`)
+  return response.data
+}
+
 export async function getTools() {
   const response = await api.get('/api/tools')
-  return response.data
+  return asList(response.data)
 }
 
 export async function getLogs(count: number = 100) {
@@ -86,10 +122,20 @@ export async function updateBrainConfig(id: string, data: Record<string, any>) {
 
 export async function getMcp() {
   const response = await api.get('/api/mcp')
-  return response.data
+  return asList(response.data)
 }
 
 export async function bindMcp(serverId: string, models: string[]) {
   const response = await api.put(`/api/mcp/${serverId}/bind`, { bind_models: models })
+  return response.data
+}
+
+export async function addMcp(data: Record<string, any>) {
+  const response = await api.post('/api/mcp', data)
+  return response.data
+}
+
+export async function deleteMcp(serverId: string) {
+  const response = await api.delete(`/api/mcp/${serverId}`)
   return response.data
 }

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getConfig, updateConfig } from '@/services/api'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 const config = ref<Record<string, any>>({})
 const loading = ref(true)
@@ -30,7 +33,7 @@ async function fetchConfig() {
     logLevel.value = config.value.logging?.level || 'INFO'
     agentEnabled.value = config.value.agent?.enabled ?? true
   } catch (e) {
-    error.value = '获取配置失败'
+    error.value = t.value.settings.fail
   } finally {
     loading.value = false
   }
@@ -55,10 +58,10 @@ async function saveConfig() {
     }
     
     await updateConfig(updates)
-    success.value = '配置已保存'
+    success.value = t.value.settings.saved
     adminPassword.value = ''
   } catch (e) {
-    error.value = '保存配置失败'
+    error.value = t.value.settings.saveFail
   } finally {
     saving.value = false
   }
@@ -71,8 +74,8 @@ onMounted(fetchConfig)
   <div class="p-8">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">系统设置</h1>
-      <p class="text-gray-500 dark:text-gray-400 mt-1">配置系统参数和选项</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t.settings.title }}</h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">{{ t.settings.sub }}</p>
     </div>
 
     <!-- Loading -->
@@ -93,13 +96,13 @@ onMounted(fetchConfig)
 
       <!-- Web Server Settings -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Web 服务器</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t.settings.web }}</h2>
         
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                主机地址
+                {{ t.settings.host }}
               </label>
               <input
                 v-model="webHost"
@@ -110,7 +113,7 @@ onMounted(fetchConfig)
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                端口
+                {{ t.settings.port }}
               </label>
               <input
                 v-model.number="webPort"
@@ -125,12 +128,12 @@ onMounted(fetchConfig)
 
       <!-- Authentication Settings -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">认证设置</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t.settings.auth }}</h2>
         
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              管理员用户名
+              {{ t.settings.admin }}
             </label>
             <input
               v-model="adminUsername"
@@ -141,26 +144,26 @@ onMounted(fetchConfig)
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              新密码
+              {{ t.settings.newPass }}
             </label>
             <input
               v-model="adminPassword"
               type="password"
               class="input"
-              placeholder="留空保持不变"
+              :placeholder="t.settings.passKeep"
             />
-            <p class="text-xs text-gray-500 mt-1">留空则不修改密码</p>
+            <p class="text-xs text-gray-500 mt-1">{{ t.settings.passKeep }}</p>
           </div>
         </div>
       </div>
 
       <!-- Logging Settings -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">日志设置</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t.settings.logging }}</h2>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            日志级别
+            {{ t.settings.level }}
           </label>
           <select v-model="logLevel" class="input">
             <option value="DEBUG">DEBUG</option>
@@ -173,12 +176,12 @@ onMounted(fetchConfig)
 
       <!-- Agent Settings -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agent 设置</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t.settings.agent }}</h2>
         
         <div class="flex items-center justify-between">
           <div>
-            <p class="font-medium text-gray-900 dark:text-white">启用 Agent</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">允许机器人使用工具和执行任务</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ t.settings.agentOn }}</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t.settings.agentHint }}</p>
           </div>
           <button
             @click="agentEnabled = !agentEnabled"
@@ -208,7 +211,7 @@ onMounted(fetchConfig)
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          {{ saving ? '保存中...' : '保存设置' }}
+          {{ saving ? t.common.saving : t.settings.save }}
         </button>
       </div>
     </div>

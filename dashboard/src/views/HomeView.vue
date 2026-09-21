@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getStatus } from '@/services/api'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 interface StatusData {
   platforms: Record<string, boolean>
@@ -19,7 +22,7 @@ async function fetchStatus() {
   try {
     status.value = await getStatus()
   } catch (e) {
-    error.value = '获取状态失败'
+    error.value = t.value.home.fail
   } finally {
     loading.value = false
   }
@@ -48,8 +51,8 @@ function getPluginCount() {
   <div class="p-8">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">仪表盘</h1>
-      <p class="text-gray-500 dark:text-gray-400 mt-1">系统概况和实时状态</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t.home.title }}</h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">{{ t.home.sub }}</p>
     </div>
 
     <!-- Loading -->
@@ -61,7 +64,7 @@ function getPluginCount() {
     <div v-else-if="error" class="card">
       <div class="text-center py-8">
         <p class="text-red-500">{{ error }}</p>
-        <button @click="fetchStatus" class="btn-primary mt-4">重试</button>
+        <button type="button" @click="fetchStatus" class="btn-primary mt-4">{{ t.common.retry }}</button>
       </div>
     </div>
 
@@ -73,7 +76,7 @@ function getPluginCount() {
         <div class="card">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">平台</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ t.home.platforms }}</p>
               <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {{ getPlatformCount().active }} / {{ getPlatformCount().total }}
               </p>
@@ -90,7 +93,7 @@ function getPluginCount() {
         <div class="card">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">提供者</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ t.home.providers }}</p>
               <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {{ status?.providers.length || 0 }}
               </p>
@@ -107,7 +110,7 @@ function getPluginCount() {
         <div class="card">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">插件</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ t.home.plugins }}</p>
               <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {{ getPluginCount().active }} / {{ getPluginCount().total }}
               </p>
@@ -123,7 +126,7 @@ function getPluginCount() {
 
       <!-- Platforms list -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">平台状态</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t.home.platformStatus }}</h2>
         <div class="space-y-3">
           <div
             v-for="(running, name) in status?.platforms"
@@ -132,18 +135,18 @@ function getPluginCount() {
           >
             <span class="font-medium text-gray-700 dark:text-gray-300">{{ name }}</span>
             <span :class="running ? 'badge-success' : 'badge-error'">
-              {{ running ? '运行中' : '已停止' }}
+              {{ running ? t.common.running : t.common.stopped }}
             </span>
           </div>
           <div v-if="!status?.platforms || Object.keys(status.platforms).length === 0" class="text-center py-4 text-gray-500">
-            暂无平台配置
+            {{ t.home.noPlatform }}
           </div>
         </div>
       </div>
 
       <!-- Plugins list -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">插件列表</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t.home.pluginList }}</h2>
         <div class="space-y-3">
           <div
             v-for="plugin in status?.plugins"
@@ -155,11 +158,11 @@ function getPluginCount() {
               <span class="text-sm text-gray-500 ml-2">v{{ plugin.version }}</span>
             </div>
             <span :class="plugin.status === 'RUNNING' ? 'badge-success' : 'badge-warning'">
-              {{ plugin.status === 'RUNNING' ? '运行中' : '已加载' }}
+              {{ plugin.status === 'RUNNING' ? t.common.running : t.common.loaded }}
             </span>
           </div>
           <div v-if="!status?.plugins || status.plugins.length === 0" class="text-center py-4 text-gray-500">
-            暂无插件安装
+            {{ t.home.noPlugin }}
           </div>
         </div>
       </div>

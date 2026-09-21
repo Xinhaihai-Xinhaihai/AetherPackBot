@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getTools } from '@/services/api'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 interface ToolParameter {
   name: string
@@ -28,7 +31,7 @@ async function fetchTools() {
   try {
     tools.value = await getTools()
   } catch (e) {
-    error.value = '获取工具列表失败'
+    error.value = t.value.tools.fail
   } finally {
     loading.value = false
   }
@@ -45,8 +48,8 @@ onMounted(fetchTools)
   <div class="p-8">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">工具管理</h1>
-      <p class="text-gray-500 dark:text-gray-400 mt-1">查看和管理可用的 Agent 工具</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t.tools.title }}</h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">{{ t.tools.sub }}</p>
     </div>
 
     <!-- Loading -->
@@ -58,7 +61,7 @@ onMounted(fetchTools)
     <div v-else-if="error" class="card">
       <div class="text-center py-8">
         <p class="text-red-500">{{ error }}</p>
-        <button @click="fetchTools" class="btn-primary mt-4">重试</button>
+        <button type="button" @click="fetchTools" class="btn-primary mt-4">{{ t.common.retry }}</button>
       </div>
     </div>
 
@@ -69,8 +72,8 @@ onMounted(fetchTools)
         <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         </svg>
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mt-4">暂无工具</h3>
-        <p class="text-gray-500 dark:text-gray-400 mt-2">安装插件以添加新工具</p>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mt-4">{{ t.tools.empty }}</h3>
+        <p class="text-gray-500 dark:text-gray-400 mt-2">{{ t.tools.emptyHint }}</p>
       </div>
 
       <!-- Tools list -->
@@ -118,7 +121,7 @@ onMounted(fetchTools)
             </div>
             <div class="flex items-center gap-3">
               <span :class="tool.enabled ? 'badge-success' : 'badge-error'">
-                {{ tool.enabled ? '已启用' : '已禁用' }}
+                {{ tool.enabled ? t.common.enabled : t.common.disabled }}
               </span>
               <svg 
                 :class="[
@@ -139,7 +142,7 @@ onMounted(fetchTools)
             v-if="expandedTool === tool.name && tool.parameters.length > 0"
             class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
           >
-            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">参数</h4>
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t.tools.params }}</h4>
             <div class="space-y-2">
               <div 
                 v-for="param in tool.parameters"
@@ -150,7 +153,7 @@ onMounted(fetchTools)
                   <div class="flex items-center gap-2">
                     <span class="font-mono text-sm text-gray-900 dark:text-white">{{ param.name }}</span>
                     <span class="text-xs text-gray-500">({{ param.type }})</span>
-                    <span v-if="param.required" class="text-xs text-red-500">*必填</span>
+                    <span v-if="param.required" class="text-xs text-red-500">{{ t.common.required }}</span>
                   </div>
                   <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {{ param.description }}

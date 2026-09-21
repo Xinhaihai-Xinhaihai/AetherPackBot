@@ -258,10 +258,11 @@ class McpManager:
             if not isinstance(raw, dict):
                 continue
             cfg = McpServerConfig.from_dict(raw)
-            if not cfg.enabled:
-                continue
             session = McpSession(cfg, self._lane)
             self._sessions[cfg.id] = session
+            if not cfg.enabled:
+                session.hint = "disabled"
+                continue
             try:
                 await session.open()
             except Exception as e:
